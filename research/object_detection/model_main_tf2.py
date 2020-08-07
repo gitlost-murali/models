@@ -53,6 +53,9 @@ flags.DEFINE_string(
 flags.DEFINE_integer('eval_timeout', 3600, 'Number of seconds to wait for an'
                      'evaluation checkpoint before exiting.')
 
+flags.DEFINE_integer('num_steps_btwn_eval', 1000, 'Number of steps to wait for an'
+                     'evaluation to take place.')
+
 flags.DEFINE_bool('use_tpu', False, 'Whether the job is executing on a TPU.')
 flags.DEFINE_string(
     'tpu_name',
@@ -98,7 +101,8 @@ def main(unused_argv):
     elif FLAGS.num_workers > 1:
       strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
     else:
-      strategy = tf.compat.v2.distribute.MirroredStrategy()
+      strategy = tf.compat.v2.distribute.OneDeviceStrategy(device="/gpu:0")
+      # Reference: https://github.com/tensorflow/models/issues/8876
 
     with strategy.scope():
       model_lib_v2.train_loop(
@@ -107,7 +111,9 @@ def main(unused_argv):
           train_steps=FLAGS.num_train_steps,
           use_tpu=FLAGS.use_tpu,
           checkpoint_every_n=FLAGS.checkpoint_every_n,
-          record_summaries=FLAGS.record_summaries)
+          record_summaries=FLAGS.record_summaries, 
+          sample_1_of_n_eval_examples=FLAGS.sample_1_of_n_eval_examples,
+          eval_frequency=FLAGS.num_steps_btwn_eval)
 
 if __name__ == '__main__':
   tf.compat.v1.app.run()
